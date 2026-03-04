@@ -116,14 +116,18 @@ elif page == "Customer Insights":
 
     st.subheader("Cluster Sizes")
 
-    fig = px.bar(
-        data["Cluster"].value_counts().reset_index(),
-        x="index",
-        y="Cluster",
-        labels={"index":"Cluster","Cluster":"Customers"}
-    )
+cluster_counts = data["Cluster"].value_counts().reset_index()
+cluster_counts.columns = ["Cluster", "Customers"]
 
-    st.plotly_chart(fig, use_container_width=True)
+fig = px.bar(
+    cluster_counts,
+    x="Cluster",
+    y="Customers",
+    color="Cluster",
+    title="Number of Customers per Cluster"
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- PREDICTION ----------------
 
