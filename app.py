@@ -5,14 +5,15 @@ import plotly.express as px
 
 st.set_page_config(page_title="Customer Segmentation Analytics", layout="wide")
 
-# Load data
+# Load dataset
 data = pd.read_csv("Mall_Customers.csv")
 
+# Sidebar
 st.sidebar.title("Customer Analytics")
 
 page = st.sidebar.radio(
     "Navigation",
-    ["Overview","Data Explorer","Segmentation","Customer Insights","Predict Segment"]
+    ["Overview", "Data Explorer", "Segmentation", "Customer Insights", "Predict Segment"]
 )
 
 # ---------------- OVERVIEW ----------------
@@ -21,11 +22,11 @@ if page == "Overview":
 
     st.title("Customer Segmentation Dashboard")
 
-    col1,col2,col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
 
-    col1.metric("Total Customers",data.shape[0])
-    col2.metric("Average Income",round(data["Annual Income (k$)"].mean(),2))
-    col3.metric("Average Spending Score",round(data["Spending Score (1-100)"].mean(),2))
+    col1.metric("Total Customers", data.shape[0])
+    col2.metric("Average Income", round(data["Annual Income (k$)"].mean(), 2))
+    col3.metric("Average Spending Score", round(data["Spending Score (1-100)"].mean(), 2))
 
     st.subheader("Customer Distribution")
 
@@ -34,10 +35,12 @@ if page == "Overview":
         x="Age",
         y="Spending Score (1-100)",
         color="Gender",
-        size="Annual Income (k$)"
+        size="Annual Income (k$)",
+        title="Customer Demographics"
     )
 
-    st.plotly_chart(fig,use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
+
 
 # ---------------- DATA EXPLORER ----------------
 
@@ -49,13 +52,14 @@ elif page == "Data Explorer":
 
     st.subheader("Income Distribution")
 
-    fig = px.histogram(data,x="Annual Income (k$)")
-    st.plotly_chart(fig,use_container_width=True)
+    fig = px.histogram(data, x="Annual Income (k$)", color="Gender")
+    st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Spending Score Distribution")
 
-    fig = px.histogram(data,x="Spending Score (1-100)")
-    st.plotly_chart(fig,use_container_width=True)
+    fig = px.histogram(data, x="Spending Score (1-100)", color="Gender")
+    st.plotly_chart(fig, use_container_width=True)
+
 
 # ---------------- SEGMENTATION ----------------
 
@@ -63,23 +67,26 @@ elif page == "Segmentation":
 
     st.title("Customer Segmentation")
 
-    clusters = st.slider("Select Number of Clusters",2,10,5)
+    clusters = st.slider("Select Number of Clusters", 2, 10, 5)
 
-    X = data.iloc[:,[3,4]].values
+    X = data.iloc[:, [3, 4]].values
 
-    model = KMeans(n_clusters=clusters,random_state=42)
-    labels = model.fit_predict(X)
+    model = KMeans(n_clusters=clusters, random_state=42)
 
-    data["Cluster"] = labels
+    data["Cluster"] = model.fit_predict(X)
+
+    st.subheader("Customer Segments (2D)")
 
     fig = px.scatter(
         data,
         x="Annual Income (k$)",
         y="Spending Score (1-100)",
-        color=data["Cluster"].astype(str)
+        color=data["Cluster"].astype(str),
+        title="Customer Segments",
+        hover_data=["Age", "Gender"]
     )
 
-    st.plotly_chart(fig,use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("3D Customer Segmentation")
 
@@ -88,46 +95,50 @@ elif page == "Segmentation":
         x="Age",
         y="Annual Income (k$)",
         z="Spending Score (1-100)",
-        color=data["Cluster"].astype(str)
+        color=data["Cluster"].astype(str),
+        title="3D Cluster Visualization"
     )
 
-    st.plotly_chart(fig3d,use_container_width=True)
+    st.plotly_chart(fig3d, use_container_width=True)
 
-# ---------------- INSIGHTS ----------------
+
+# ---------------- CUSTOMER INSIGHTS ----------------
 
 elif page == "Customer Insights":
 
     st.title("Cluster Insights")
 
-    X = data.iloc[:,[3,4]].values
+    X = data.iloc[:, [3, 4]].values
 
     model = KMeans(n_clusters=5, random_state=42)
 
     data["Cluster"] = model.fit_predict(X)
 
     summary = data.groupby("Cluster").agg({
-        "Age":"mean",
-        "Annual Income (k$)":"mean",
-        "Spending Score (1-100)":"mean",
-        "CustomerID":"count"
-    }).rename(columns={"CustomerID":"Customers"})
+        "Age": "mean",
+        "Annual Income (k$)": "mean",
+        "Spending Score (1-100)": "mean",
+        "CustomerID": "count"
+    }).rename(columns={"CustomerID": "Customers"})
 
     st.dataframe(summary)
 
     st.subheader("Cluster Sizes")
 
-cluster_counts = data["Cluster"].value_counts().reset_index()
-cluster_counts.columns = ["Cluster", "Customers"]
+    cluster_counts = data["Cluster"].value_counts().reset_index()
 
-fig = px.bar(
-    cluster_counts,
-    x="Cluster",
-    y="Customers",
-    color="Cluster",
-    title="Number of Customers per Cluster"
-)
+    cluster_counts.columns = ["Cluster", "Customers"]
 
-st.plotly_chart(fig, use_container_width=True)
+    fig = px.bar(
+        cluster_counts,
+        x="Cluster",
+        y="Customers",
+        color="Cluster",
+        title="Number of Customers per Cluster"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
 
 # ---------------- PREDICTION ----------------
 
@@ -135,15 +146,18 @@ elif page == "Predict Segment":
 
     st.title("Customer Segment Predictor")
 
-    income = st.slider("Annual Income",10,150,60)
-    score = st.slider("Spending Score",1,100,50)
+    income = st.slider("Annual Income (k$)", 10, 150, 60)
 
-    X = data.iloc[:,[3,4]].values
-    model = KMeans(n_clusters=5,random_state=42)
+    score = st.slider("Spending Score", 1, 100, 50)
+
+    X = data.iloc[:, [3, 4]].values
+
+    model = KMeans(n_clusters=5, random_state=42)
+
     model.fit(X)
 
     if st.button("Predict Customer Type"):
 
-        prediction = model.predict([[income,score]])
+        prediction = model.predict([[income, score]])
 
         st.success(f"This customer belongs to Cluster {prediction[0]}")
