@@ -1,129 +1,138 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 from sklearn.cluster import KMeans
 import plotly.express as px
 
-st.set_page_config(page_title="Customer Segmentation Dashboard", layout="wide")
+st.set_page_config(page_title="Customer Segmentation Analytics", layout="wide")
 
-st.title("🛍️ Customer Segmentation Dashboard")
-
-st.write("Analyze customer groups based on **Annual Income** and **Spending Score** using K-Means clustering.")
-
-# Load dataset
+# Load data
 data = pd.read_csv("Mall_Customers.csv")
 
-# KPI Metrics
-st.subheader("Key Metrics")
+st.sidebar.title("Customer Analytics")
 
-col1, col2, col3 = st.columns(3)
+page = st.sidebar.radio(
+    "Navigation",
+    ["Overview","Data Explorer","Segmentation","Customer Insights","Predict Segment"]
+)
 
-col1.metric("Total Customers", data.shape[0])
-col2.metric("Average Income", round(data["Annual Income (k$)"].mean(),2))
-col3.metric("Average Spending Score", round(data["Spending Score (1-100)"].mean(),2))
+# ---------------- OVERVIEW ----------------
 
-st.divider()
+if page == "Overview":
 
-# Dataset Explorer
-st.subheader("Dataset Preview")
+    st.title("Customer Segmentation Dashboard")
 
-if st.checkbox("Show Dataset"):
+    col1,col2,col3 = st.columns(3)
+
+    col1.metric("Total Customers",data.shape[0])
+    col2.metric("Average Income",round(data["Annual Income (k$)"].mean(),2))
+    col3.metric("Average Spending Score",round(data["Spending Score (1-100)"].mean(),2))
+
+    st.subheader("Customer Distribution")
+
+    fig = px.scatter(
+        data,
+        x="Age",
+        y="Spending Score (1-100)",
+        color="Gender",
+        size="Annual Income (k$)"
+    )
+
+    st.plotly_chart(fig,use_container_width=True)
+
+# ---------------- DATA EXPLORER ----------------
+
+elif page == "Data Explorer":
+
+    st.title("Dataset Explorer")
+
     st.dataframe(data)
 
-# Distribution Charts
-st.subheader("Customer Distributions")
+    st.subheader("Income Distribution")
 
-col1, col2 = st.columns(2)
+    fig = px.histogram(data,x="Annual Income (k$)")
+    st.plotly_chart(fig,use_container_width=True)
 
-fig1 = px.histogram(data, x="Age", title="Age Distribution")
-fig2 = px.histogram(data, x="Annual Income (k$)", title="Income Distribution")
+    st.subheader("Spending Score Distribution")
 
-col1.plotly_chart(fig1, use_container_width=True)
-col2.plotly_chart(fig2, use_container_width=True)
+    fig = px.histogram(data,x="Spending Score (1-100)")
+    st.plotly_chart(fig,use_container_width=True)
 
-fig3 = px.histogram(data, x="Spending Score (1-100)", title="Spending Score Distribution")
-st.plotly_chart(fig3, use_container_width=True)
+# ---------------- SEGMENTATION ----------------
 
-st.divider()
+elif page == "Segmentation":
 
-# Feature Selection
-X = data.iloc[:, [3,4]].values
+    st.title("Customer Segmentation")
 
-# Elbow Method
-st.subheader("Elbow Method")
+    clusters = st.slider("Select Number of Clusters",2,10,5)
 
-wcss = []
+    X = data.iloc[:,[3,4]].values
 
-for i in range(1,11):
-    kmeans = KMeans(n_clusters=i, init="k-means++", random_state=42)
-    kmeans.fit(X)
-    wcss.append(kmeans.inertia_)
+    model = KMeans(n_clusters=clusters,random_state=42)
+    labels = model.fit_predict(X)
 
-fig = px.line(
-    x=range(1,11),
-    y=wcss,
-    markers=True,
-    labels={"x":"Number of Clusters","y":"WCSS"},
-    title="Optimal Clusters using Elbow Method"
-)
+    data["Cluster"] = labels
 
-st.plotly_chart(fig, use_container_width=True)
+    fig = px.scatter(
+        data,
+        x="Annual Income (k$)",
+        y="Spending Score (1-100)",
+        color=data["Cluster"].astype(str)
+    )
 
-st.divider()
+    st.plotly_chart(fig,use_container_width=True)
 
-# Train Model
-kmeans = KMeans(n_clusters=5, init="k-means++", random_state=42)
-clusters = kmeans.fit_predict(X)
+    st.subheader("3D Customer Segmentation")
 
-data["Cluster"] = clusters
+    fig3d = px.scatter_3d(
+        data,
+        x="Age",
+        y="Annual Income (k$)",
+        z="Spending Score (1-100)",
+        color=data["Cluster"].astype(str)
+    )
 
-# Cluster Visualization
-st.subheader("Customer Segments")
+    st.plotly_chart(fig3d,use_container_width=True)
 
-fig2 = px.scatter(
-    data,
-    x="Annual Income (k$)",
-    y="Spending Score (1-100)",
-    color=data["Cluster"].astype(str),
-    title="Customer Segments",
-    hover_data=["Age","Gender"]
-)
+# ---------------- INSIGHTS ----------------
 
-st.plotly_chart(fig2, use_container_width=True)
+elif page == "Customer Insights":
 
-st.divider()
+    st.title("Cluster Insights")
 
-# Cluster Insights
-st.subheader("Cluster Insights")
+    X = data.iloc[:,[3,4]].values
+    model = KMeans(n_clusters=5,random_state=42)
+    data["Cluster"] = model.fit_predict(X)
 
-cluster_summary = data.groupby("Cluster")[["Annual Income (k$)","Spending Score (1-100)"]].mean().round(2)
+    summary = data.groupby("Cluster").mean()
 
-st.dataframe(cluster_summary)
+    st.dataframe(summary)
 
-st.divider()
+    st.subheader("Cluster Sizes")
 
-# Customer Prediction
-st.subheader("Predict Customer Segment")
+    fig = px.bar(
+        data["Cluster"].value_counts().reset_index(),
+        x="index",
+        y="Cluster",
+        labels={"index":"Cluster","Cluster":"Customers"}
+    )
 
-income = st.slider("Annual Income (k$)",10,150,60)
-score = st.slider("Spending Score",1,100,50)
+    st.plotly_chart(fig,use_container_width=True)
 
-if st.button("Predict Segment"):
+# ---------------- PREDICTION ----------------
 
-    prediction = kmeans.predict([[income,score]])
+elif page == "Predict Segment":
 
-    st.success(f"This customer belongs to **Cluster {prediction[0]}**")
+    st.title("Customer Segment Predictor")
 
-st.divider()
+    income = st.slider("Annual Income",10,150,60)
+    score = st.slider("Spending Score",1,100,50)
 
-# Download Data
-st.subheader("Download Clustered Dataset")
+    X = data.iloc[:,[3,4]].values
+    model = KMeans(n_clusters=5,random_state=42)
+    model.fit(X)
 
-csv = data.to_csv(index=False).encode("utf-8")
+    if st.button("Predict Customer Type"):
 
-st.download_button(
-    "Download Segmented Data",
-    csv,
-    "customer_segments.csv",
-    "text/csv"
-)
+        prediction = model.predict([[income,score]])
+
+        st.success(f"This customer belongs to Cluster {prediction[0]}")
