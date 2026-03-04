@@ -100,10 +100,17 @@ elif page == "Customer Insights":
     st.title("Cluster Insights")
 
     X = data.iloc[:,[3,4]].values
-    model = KMeans(n_clusters=5,random_state=42)
+
+    model = KMeans(n_clusters=5, random_state=42)
+
     data["Cluster"] = model.fit_predict(X)
 
-    ssummary = data.groupby("Cluster").mean(numeric_only=True)
+    summary = data.groupby("Cluster").agg({
+        "Age":"mean",
+        "Annual Income (k$)":"mean",
+        "Spending Score (1-100)":"mean",
+        "CustomerID":"count"
+    }).rename(columns={"CustomerID":"Customers"})
 
     st.dataframe(summary)
 
@@ -116,7 +123,7 @@ elif page == "Customer Insights":
         labels={"index":"Cluster","Cluster":"Customers"}
     )
 
-    st.plotly_chart(fig,use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
 
 # ---------------- PREDICTION ----------------
 
