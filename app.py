@@ -103,7 +103,7 @@ elif page == "Customer Insights":
     model = KMeans(n_clusters=5,random_state=42)
     data["Cluster"] = model.fit_predict(X)
 
-    summary = data.groupby("Cluster").mean()
+    ssummary = data.groupby("Cluster").mean(numeric_only=True)
 
     st.dataframe(summary)
 
